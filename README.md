@@ -17,6 +17,14 @@
 - **`docker ps --all`**  
   Lists all containers on your system, including those that are stopped. This is useful for seeing containers that are not currently running.
 
+Example:
+
+```shell
+docker run nginx
+```
+
+This command runs an Nginx container based on the official Nginx image. If the image is not available locally, Docker will pull it from Docker Hub. The container will start and run the Nginx web server.
+
 ## Docker Run Basics
 
 - **`docker run -p <host_port>:<container_port> <image_name>`**  
@@ -28,17 +36,22 @@
 - **`docker run -p <host_port>:<container_port> -d --name <container_name> <image_name>`**  
   In addition to running the container in detached mode and mapping ports, this command also assigns a custom name to the container. This makes it easier to manage the container using its name instead of the container ID.
 
-- **`docker stop <container_name>`**  
+- **`docker stop <container_name|container_id>`**  
   Stops a running container using its name. This cleanly shuts down the container's processes.
-
-- **`docker stop <container_id>`**  
-  Similar to the previous command, but this stops a container using its ID instead of its name.
 
 - **`docker container prune`**  
   Removes all stopped containers, freeing up system resources. This is a useful cleanup command to remove containers no longer in use.
 
 - **`docker run -p <host_port>:<container_port> -d --rm <image_name>`**  
   Runs the container in detached mode with port mapping, but the `--rm` flag ensures the container is automatically removed when it stops. This is helpful for temporary containers you don't need to keep after they finish running.
+
+Example:
+
+```shell
+docker run -p 8080:80 -d nginx
+```
+
+This command runs an Nginx container in detached mode, mapping port 80 of the container to port 8080 on your host machine. You can access the Nginx web server through `http://localhost:8080`.
 
 ## Tags
 
@@ -54,12 +67,13 @@
 - **`docker run <image_name>@<digest>`**  
   Runs a Docker image based on its digest instead of a tag. Using the digest guarantees that the exact image content is used, as digests are immutable.
 
-## Example
+Example:
 
-- **`docker run -p 80:80 -d nginx`**  
-  This command runs the official Nginx image in detached mode and maps port 80 of the container to port 80 on your host machine. It allows you to access the Nginx web server through `http://localhost:80`.
+```shell
+docker run -p 80:80 -d nginx:1.21.0-bookworm
+```
 
-## Continuation
+This command runs the official Nginx image in detached mode and maps port 80 of the container to port 80 on your host machine. It allows you to access the Nginx web server through `http://localhost:80`. Additionally, the `1.21.0` tag ensures you're using a specific version of the Nginx image. In production, it's recommended to use version-specific digests for even greater consistency.
 
 ## Runtime
 
@@ -68,6 +82,38 @@
 
 - **`docker exec -it <container_name> <command>`**  
   Executes a command inside a running container. The `-it` flag allows you to interact with the command in an interactive terminal session (interactive and pseudo-TTY).
+
+Example:
+
+```shell
+docker run -e ABC=123 -e DEF=456 python:3.13-slim-bookworm python -c 'import os; print(os.environ)' 
+# or
+docker run -e ABC=123 -e DEF=456 ghcr.io/astral-sh/uv:0.5.14-python3.13-bookworm-slim python -c 'import os; print(os.environ)' 
+```
+
+This command runs a Python container with environment variables `ABC` and `DEF` set to `123` and `456`, respectively. The Python command prints the environment variables inside the container.
+
+```shell
+docker run -e ABC=123 -e DEF=456 -it ghcr.io/astral-sh/uv:0.5.14-python3.13-bookworm-slim /bin/bash
+```
+
+This command runs a Python container with environment variables `ABC` and `DEF` set to `123` and `456`, respectively. It starts an interactive shell session (`/bin/bash`) inside the container, allowing you to explore the container environment.
+
+## Debugging
+
+continue here...
+
+## Other examples
+
+Run container interactively:
+
+```shell
+docker run -it --rm python:3.13-slim-bookworm /bin/bash
+# or
+docker run -it ghcr.io/astral-sh/uv:0.5.14-python3.13-bookworm-slim /bin/bash
+```
+
+Note that if you don't add the /bin/bash (or another shell command) at the end, Docker will use the CMD or ENTRYPOINT defined in the Dockerfile.
 
 ## Persistent Storage
 
@@ -103,10 +149,7 @@ Three types of mounts:
 
 continue here...
 
-## Examples
 
-- **`docker run -e ABC=123 -e DEF=456 python:3.12 python -c 'import os; print(os.environ)'`**  
-  Runs a Python container with environment variables (`ABC=123`, `DEF=456`) and prints them inside the container.
 
 - **`docker exec -it <container_name> /bin/bash`**  
   Accesses a running container's shell (`/bin/bash`) for interactive use.
@@ -163,3 +206,5 @@ In this example:
 - **Auditing and Compliance**: In scenarios where changes to data need to be controlled and audited, ensuring that containers can only read but not write can help you maintain compliance.
 
 By using read-only bind mounts, you effectively minimize the risk of accidental or malicious changes to important files inside your containers, adding a layer of security and control.
+
+## conitnue
