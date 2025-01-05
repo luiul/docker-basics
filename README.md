@@ -195,6 +195,7 @@ Useful Dockerfile instructions:
 - **`FROM <base_image>:<tag>`**: Specifies the base image to build upon. This is the starting point for your custom image. You can use official images from Docker Hub or other registries, or you can use other custom images you've built. The `tag` is optional and specifies a specific version of the base image. If omitted, Docker uses the `latest` tag by default.
 - **`COPY <src> <dest>`**: Copies files or directories from the build context to the image. This is useful for adding application code, configuration files, etc. to the image. The `src` path is relative to the build context. The `dest` path is the location in the image where the files will be copied.
 - **`RUN <command>`**: Executes a command during the build process. This is useful for installing packages, setting up the environment, etc. Each `RUN` instruction creates a new layer in the image. To reduce the image size, consider chaining commands together (e.g., `RUN apt-get update && apt-get install -y package`).
+- **`WORKDIR <path>`**: Sets the working directory for any subsequent `RUN`, `CMD`, `ENTRYPOINT`, `COPY`, or `ADD` instructions. This is where commands will be executed inside
 
 ## 7. Layers
 
