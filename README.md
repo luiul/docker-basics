@@ -15,12 +15,13 @@
 - [7. Layers](#7-layers)
 - [8. Multi-Stage Builds](#8-multi-stage-builds)
 - [9. Docker Compose](#9-docker-compose)
-- [10. Appendix](#10-appendix)
-  - [10.1. Read-Only Bind Mounts](#101-read-only-bind-mounts)
-  - [10.2. Layers](#102-layers)
-  - [10.3. Optimizing Docker Images](#103-optimizing-docker-images)
-- [11. Multi-Stage Builds](#11-multi-stage-builds)
-  - [11.1. Possible Improvements](#111-possible-improvements)
+- [10. Deploying](#10-deploying)
+- [11. Appendix](#11-appendix)
+  - [11.1. Read-Only Bind Mounts](#111-read-only-bind-mounts)
+  - [11.2. Layers](#112-layers)
+  - [11.3. Optimizing Docker Images](#113-optimizing-docker-images)
+- [12. Multi-Stage Builds](#12-multi-stage-builds)
+  - [12.1. Possible Improvements](#121-possible-improvements)
 
 ## 1. Intro
 
@@ -251,13 +252,34 @@ CMD ["uvicorn", "mysite.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 ## 9. Docker Compose
 
-continue here...
+Multiple containers are cumbersome to manage individually. Real applications may include frontend, backend, database, load balancer, cache, and task queue. Docker Compose is a tool to manage these compositions.
 
-## 10. Appendix
+- **`docker-compose build`**  
+  Builds the services defined in the `docker-compose.yml` file.
+
+- **`docker-compose up`**  
+  Starts the services defined in the `docker-compose.yml` file. If the services don't exist, Docker Compose will create them. The services run in the foreground, and you can see their output in the terminal.
+
+- **`docker-compose stop`**  
+  Stops the services defined in the `docker-compose.yml` file without removing them. This allows you to start the services again later without losing their state.
+
+- **`docker-compose down`**
+  Stops and removes the services defined in the `docker-compose.yml` file. This command cleans up the containers, networks, and volumes created by `docker-compose up`.
+
+## 10. Deploying
+
+Deploying is optional. You can run Docker on your server or use a paid service. Common services include:
+
+- AWS: ECS, EKS, Lambda, App Runner, Lightsail
+- GCP: GCE, GKE, Cloud Run
+- Azure: ACI, AKS, Functions, App Service
+- Many platform-as-a-service (PaaS) providers
+
+## 11. Appendix
 
 This section covers additional topics or expandsm on concepts discussed in the main content.
 
-### 10.1. Read-Only Bind Mounts
+### 11.1. Read-Only Bind Mounts
 
 A **bind mount** allows you to map a directory or file from your host system into a container. This can be useful for sharing configuration files, code, or other data between the host and the container.
 
@@ -298,11 +320,11 @@ Read-only bind mounts are useful in various scenarios, including:
 
 By using read-only bind mounts, you effectively minimize the risk of accidental or malicious changes to important files inside your containers, adding a layer of security and control.
 
-### 10.2. Layers
+### 11.2. Layers
 
 Docker images are built using a layered filesystem. Each instruction in a Dockerfile creates a new layer in the image. When you build an image, Docker caches the layers to improve build performance. If you make a change to a Dockerfile instruction, Docker rebuilds the image starting from the instruction that changed. This allows Docker to reuse previously built layers, speeding up the build process.
 
-### 10.3. Optimizing Docker Images
+### 11.3. Optimizing Docker Images
 
 Rules for optimizing Docker images:
 
@@ -314,7 +336,7 @@ Rules for optimizing Docker images:
 - **Use Specific Tags**: Use specific tags for base images and dependencies to ensure consistency and avoid unexpected changes. This helps maintain reproducibility and stability in your Docker images.
 - **Optimize Layers**: Be mindful of how layers are created in your Dockerfile. Avoid creating unnecessary layers and consider the impact of each instruction on the final image size.
 
-## 11. Multi-Stage Builds
+## 12. Multi-Stage Builds
 
 Here’s an example of how your project might be structured on disk:
 
@@ -406,7 +428,7 @@ Key Points:
 5. **CMD**
    - In the final stage, `CMD ["python", "app.py"]` indicates that this is the default command that will run when someone starts a container from this image.r from this image.
 
-### 11.1. Possible Improvements
+### 12.1. Possible Improvements
 
 1. **Adding a Test Stage**
     You can introduce a separate test stage if you want to run unit tests or integration tests before producing the final image:
