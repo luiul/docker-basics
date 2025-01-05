@@ -13,10 +13,13 @@
   - [5.2. Bind Mounts](#52-bind-mounts)
 - [6. Custom Docker Images](#6-custom-docker-images)
 - [7. Layers](#7-layers)
+- [Multi-Stage Builds](#multi-stage-builds)
 - [8. Appendix](#8-appendix)
   - [8.1. Read-Only Bind Mounts](#81-read-only-bind-mounts)
   - [8.2. Layers](#82-layers)
-  - [8.3. Misc](#83-misc)
+  - [8.3. Optimizing Docker Images](#83-optimizing-docker-images)
+- [Multi-Stage Builds](#multi-stage-builds-1)
+  - [Possible Improvements](#possible-improvements)
 
 ## 1. Intro
 
@@ -211,6 +214,33 @@ Caching Rules:
 
 A RUN command that deletes files creates a new layer, but the files remain in the previous layer. Therefore, avoid placing sensitive information in Docker images (even temporarily) and then deleting it. Since deleted data exists in prior layers, it can be recovered by a malicious user.
 
+## Multi-Stage Builds
+
+Multi-stage builds allow you to use multiple `FROM` instructions in a single Dockerfile. This is useful for separating build dependencies from the final image, reducing the size of the final image. Each `FROM` instruction starts a new stage in the build process, and you can copy files between stages using the `COPY --from=<stage>` instruction.
+
+Example:
+
+```dockerfile
+# Build stage
+FROM python:3.13-slim-bookworm AS builder
+WORKDIR /app/
+
+COPY requirements.txt .
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir wheels/ -r requirements.txt
+
+# Runtime stage
+FROM python:3.13-slim-bookworm as runner
+
+# Copy dependencies from the build stage
+COPY --from=builder /app/wheels/ /wheels/
+RUN pip install --no-cache /wheels/* && rm -rf /wheels/
+
+# Copy application code
+COPY . /app/
+
+CMD ["python", "app.py"]
+```
+
 ## 8. Appendix
 
 This section covers additional topics or expandsm on concepts discussed in the main content.
@@ -260,7 +290,7 @@ By using read-only bind mounts, you effectively minimize the risk of accidental 
 
 Docker images are built using a layered filesystem. Each instruction in a Dockerfile creates a new layer in the image. When you build an image, Docker caches the layers to improve build performance. If you make a change to a Dockerfile instruction, Docker rebuilds the image starting from the instruction that changed. This allows Docker to reuse previously built layers, speeding up the build process.
 
-### 8.3. Misc
+### 8.3. Optimizing Docker Images
 
 Rules for optimizing Docker images:
 
@@ -271,3 +301,106 @@ Rules for optimizing Docker images:
 - **Minimize Image Size**: Remove unnecessary files, dependencies, and build artifacts from the final image to reduce its size. This can be done by using smaller base images, cleaning up after installation, and avoiding unnecessary packages.
 - **Use Specific Tags**: Use specific tags for base images and dependencies to ensure consistency and avoid unexpected changes. This helps maintain reproducibility and stability in your Docker images.
 - **Optimize Layers**: Be mindful of how layers are created in your Dockerfile. Avoid creating unnecessary layers and consider the impact of each instruction on the final image size.
+
+## Multi-Stage Builds
+
+Here’s an example of how your project might be structured on disk:
+
+```plaintext
+my-python-app/
+├── Dockerfile
+├── requirements.txt
+├── app.py
+└── src/
+    ├── __init__.py
+    └── helper.py
+```
+
+- Dockerfile: The file that contains the instructions for building your Docker image.
+- requirements.txt: Your Python dependencies listed line by line, e.g. requests==2.31.0, etc.
+- app.py: The main Python application entry point.
+- src/: A folder containing additional Python modules or packages used by app.py.
+
+Here’s a breakdown of the Dockerfile:
+
+```dockerfile
+# ─────────────────────────────────────────────────────────
+# 1) Build Stage
+# ─────────────────────────────────────────────────────────
+FROM python:3.13-slim-bookworm AS builder
+
+# Set the working directory inside the build container
+WORKDIR /app/
+
+# Copy only the requirements file first, to leverage Docker caching.
+COPY requirements.txt .
+
+# Generate wheels for all dependencies and store them in /app/wheels
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir wheels/ -r requirements.txt
+
+# (Optional) If you have any build steps, such as compiling extensions or 
+# other build artifacts, they would go here before we move on to the runtime stage.
+
+# ─────────────────────────────────────────────────────────
+# 2) Runtime Stage
+# ─────────────────────────────────────────────────────────
+FROM python:3.13-slim-bookworm AS runner
+
+# Copy the pre-built wheels from the builder stage into the runtime image
+COPY --from=builder /app/wheels/ /wheels/
+
+# Install all dependencies from the wheels, then remove the wheels directory
+RUN pip install --no-cache /wheels/* && rm -rf /wheels/
+
+# Copy the rest of your application code
+COPY . /app/
+
+# (Optional) Set the working directory in the runtime container
+WORKDIR /app/
+
+# The default command that runs when the container starts
+CMD ["python", "app.py"]
+```
+
+Key Points:
+
+1. **Multi-Stage Build**
+   - Using two `FROM` statements creates two stages:
+     - **builder**: Installs build tools and builds wheels for Python dependencies.
+     - **runner**: Uses the minimal environment needed to run the application.
+   - This pattern keeps the final image smaller and prevents your runtime image from having unnecessary build dependencies.
+
+2. **Caching Layers**
+   - By copying `requirements.txt` first (instead of all your source code) and running `pip wheel ...`, you make use of Docker’s layer caching. If your `requirements.txt` doesn’t change, the Docker build for the dependency layer is cached, speeding up subsequent builds.
+
+3. **Copying Wheels**
+   - `COPY --from=builder /app/wheels/ /wheels/` copies the built wheels from the builder stage to the runner stage. This is the core advantage of multi-stage builds: you can share artifacts between stages without re-downloading or rebuilding them.
+
+4. **Cleaning Up**
+   - `rm -rf /wheels/` ensures we remove the wheels directory after installation. This further reduces the final image size.
+
+5. **CMD**
+   - In the final stage, `CMD ["python", "app.py"]` indicates that this is the default command that will run when someone starts a container from this image.r from this image.
+
+### Possible Improvements
+
+1. **Adding a Test Stage**
+    You can introduce a separate test stage if you want to run unit tests or integration tests before producing the final image:
+
+    ```dockerfile
+    FROM builder AS tester
+    COPY tests/ /app/tests/
+    RUN pip install pytest && pytest --maxfail=1 --disable-warnings /app/tests
+    ```
+
+    If tests fail, the build will stop before creating the final image.
+
+2. **Using a .dockerignore File**
+   - Placing a `.dockerignore` in your project root can help exclude files/folders you don’t want to copy into the image (e.g., `.git`, logs, large data files).
+   - This can further reduce your build context and speed up the build.
+
+3. **Environment Variables**
+   - You could set environment variables (e.g., `ENV PYTHONDONTWRITEBYTECODE=1`) to control Python’s behavior, speed up startup, or reduce container size.
+
+4. **Alpine vs Slim**
+   - You’ve chosen `python:3.13-slim-bookworm` which is often smaller than `python:3.13`. For some projects, you could try `python:3.13-alpine`, but beware of possible compatibility issues with compiled dependencies (they sometimes require more work on Alpine’s musl-based environment).
