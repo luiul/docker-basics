@@ -196,6 +196,7 @@ Useful Dockerfile instructions:
 - **`COPY <src> <dest>`**: Copies files or directories from the build context to the image. This is useful for adding application code, configuration files, etc. to the image. The `src` path is relative to the build context. The `dest` path is the location in the image where the files will be copied.
 - **`RUN <command>`**: Executes a command during the build process. This is useful for installing packages, setting up the environment, etc. Each `RUN` instruction creates a new layer in the image. To reduce the image size, consider chaining commands together (e.g., `RUN apt-get update && apt-get install -y package`).
 - **`WORKDIR <path>`**: Sets the working directory for any subsequent `RUN`, `CMD`, `ENTRYPOINT`, `COPY`, or `ADD` instructions. This is where commands will be executed inside
+- **`EXPOSE <port>`**: Informs Docker that the container listens on the specified network ports at runtime. This does not actually publish the port, but it is useful for documentation purposes. To publish ports, use the `-p` flag with `docker run`.
 
 ## 7. Layers
 
