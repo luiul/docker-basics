@@ -3,7 +3,7 @@
 ## Intro
 
 - **`docker run <image_name>`**  
-  Runs a container based on the specified Docker image. If the image isn't available locally, Docker will attempt to pull it from Docker Hub or another registry.
+  Runs a container based on the specified Docker image. If the image isn't available locally, Docker will attempt to pull it from Docker Hub or another registry. Note that each time you run this command, a new container instance is created based on the image you specify. This means that changes made to the container (e.g., file modifications, installed packages) are not persisted across runs.
   
 - **`docker pull <image_name>`**  
   Pulls the latest version of the specified image from a Docker registry (like Docker Hub) to your local machine without running it.
@@ -75,7 +75,7 @@ docker run -p 80:80 -d nginx:1.21.0-bookworm
 
 This command runs the official Nginx image in detached mode and maps port 80 of the container to port 80 on your host machine. It allows you to access the Nginx web server through `http://localhost:80`. Additionally, the `1.21.0` tag ensures you're using a specific version of the Nginx image. In production, it's recommended to use version-specific digests for even greater consistency.
 
-## Runtime
+## Runtime and Debugging
 
 - **`docker run -e <key>=<value> <image_name>:<tag> <command>`**  
   Runs a container based on the specified image and executes the specified command within the container. This is useful for running one-off commands or scripts inside a container.
@@ -86,9 +86,13 @@ This command runs the official Nginx image in detached mode and maps port 80 of 
 Example:
 
 ```shell
-docker run -e ABC=123 -e DEF=456 python:3.13-slim-bookworm python -c 'import os; print(os.environ)' 
+docker run -e ABC=123 -e DEF=456 python:3.13-slim-bookworm python -c '
+import os; print(os.environ)
+' 
 # or
-docker run -e ABC=123 -e DEF=456 ghcr.io/astral-sh/uv:0.5.14-python3.13-bookworm-slim python -c 'import os; print(os.environ)' 
+docker run -e ABC=123 -e DEF=456 ghcr.io/astral-sh/uv:0.5.14-python3.13-bookworm-slim python -c '
+import os; print(os.environ)
+' 
 ```
 
 This command runs a Python container with environment variables `ABC` and `DEF` set to `123` and `456`, respectively. The Python command prints the environment variables inside the container.
@@ -99,57 +103,59 @@ docker run -e ABC=123 -e DEF=456 -it ghcr.io/astral-sh/uv:0.5.14-python3.13-book
 
 This command runs a Python container with environment variables `ABC` and `DEF` set to `123` and `456`, respectively. It starts an interactive shell session (`/bin/bash`) inside the container, allowing you to explore the container environment.
 
-## Debugging
-
-continue here...
-
-## Other examples
-
-Run container interactively:
-
-```shell
-docker run -it --rm python:3.13-slim-bookworm /bin/bash
-# or
-docker run -it ghcr.io/astral-sh/uv:0.5.14-python3.13-bookworm-slim /bin/bash
-```
-
-Note that if you don't add the /bin/bash (or another shell command) at the end, Docker will use the CMD or ENTRYPOINT defined in the Dockerfile.
+- **`docker logs <container_name|container_id>`**
+  Displays the logs of a running container. This is useful for debugging issues or monitoring the output of a containerized application.
+- **`docker exec -it <container_name|container_id> /bin/bash`**
+  Accesses a running container's shell (`/bin/bash`) for interactive use. This is helpful for debugging, inspecting the container environment, or running commands inside the container.
 
 ## Persistent Storage
 
-Three types of mounts:
+Let begin with an example:
 
-- Volume mounts
-- Bind mounts
-- Tmpfs mounts (non-persistent)
+```shell
+docker run python:3.13-slim-bookworm python -c '
+f = "/msg.txt"
+open(f, "a").write("Executables in the container ran!\n")
+print(open(f).read())
+'
+```
 
-### Volume Mounts
+Note that the file `data.txt` is created and written to inside the container. However, when the container stops, the file is lost because the container's filesystem is ephemeral. To persist data across container runs, you can use **volumes** or **bind mounts**. Tmpfs mounts are also available for non-persistent storage (not covered here).
 
-- Often better in production
-- Not dependent on host filesystem
-- Easy to share across containers
-- Can use remote or cloud storage (e.g., AWS EFS, NFS, SSHFS)
-- Container does not need access to the host
-- Not convenient for sharing with the host system
+### Volumes
 
-- **`docker run -v mydata:/data <image_name>:<tag> <command>`**  
-  Runs a container with a volume named `mydata` mounted at the `/data` directory inside the container. This allows you to persist data across container runs and share data between containers.
+```shell
+docker run -v docker_managed_volume:/app_data python:3.13-slim-bookworm python -c '
+f = "/app_data/msg.txt"
+open(f, "a").write("Executables in the container ran!\n")
+print(open(f).read())
+'
+```
+
+In this example, a volume named `docker_managed_volume` is mounted at the `/app_data` directory inside the container. This allows you to persist data across container runs and share data between containers. Note each docker run call creates a new container instance with a new filesystem but the volume is shared between them. Note that the volume is managed by Docker and not easily accessible from the host system.
+
+Volumes are a good choice for **production** environments where you need to persist data across container runs and share data between containers. They are also useful for storing data that needs to be accessed by multiple containers. Docker volumes are managed by Docker and are not directly accessible from the host system, providing an additional layer of isolation and security. They can use remote or cloud storage solutions (e.g., AWS EFS, NFS, SSHFS) for more advanced use cases.
 
 ### Bind Mounts
 
-- Often convenient in development
-- Quickly share data with the host system
-  - Gives the container access to the host system
-  - Consider using a read-only mount (e.g., `-v ./mydata:/path/in/container:ro`)
+In the previous example we used a volume mount. Now let's see how to use a bind mount:
 
-- **`mkdir mydata && docker run -v $(pwd)/mydata:/data <image_name>:<tag> <command>`**  
-  Creates a local directory named `mydata` and mounts it to the `/data` directory inside the container. This is an example of a bind mount, which allows you to share files between the host and container.
+```shell
+mkdir host_managed_volume &&
+docker run -v $(pwd)/host_managed_volume:/app_data python:3.13-slim-bookworm python -c '
+file_path = "/app_data/msg.txt"
+open(file_path, "a").write("Executables in the container ran!\n")
+print(open(file_path).read())
+'
+```
+
+Note that the syntax is similar to volume mounts, but the difference is that bind mounts are directly linked to a directory on the host system. This allows you to easily share files between the host and container. The data is stored on the host system and is accessible even when the container is not running.
+
+Bind mounts are useful for **development** environments where you want to share code or data between the host and container. They are also convenient for sharing configuration files or other resources that need to be accessed by the container. However, bind mounts can be less secure than volumes because they give the container direct access to the host filesystem. For added security, consider using read-only bind mounts.
 
 ## Custom Docker Images
 
 continue here...
-
-
 
 - **`docker exec -it <container_name> /bin/bash`**  
   Accesses a running container's shell (`/bin/bash`) for interactive use.
