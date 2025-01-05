@@ -1,6 +1,8 @@
 <!-- omit in toc -->
 # Docker Basics
 
+Docker is a platform for developing, shipping, and running applications in containers. Containers are lightweight, standalone, and executable packages that include everything needed to run an application: code, runtime, system tools, libraries, and settings. Docker provides a consistent environment for applications to run in, making it easy to build, test, and deploy software.
+
 <!-- omit in toc -->
 ## Table of Contents
 
