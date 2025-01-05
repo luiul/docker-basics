@@ -1,5 +1,6 @@
 [build-system]
 requires = ["setuptools"]
+# requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,6 +9,8 @@ description = "My awesome site"
 readme = "README.md"
 requires-python = ">=3.11"
 version = "0.0.1"
+
 dependencies = ["fastapi", "motor"]
+
 [tool.setuptools.packages.find]
 where = ["src"]

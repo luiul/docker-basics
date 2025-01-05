@@ -13,13 +13,14 @@
   - [5.2. Bind Mounts](#52-bind-mounts)
 - [6. Custom Docker Images](#6-custom-docker-images)
 - [7. Layers](#7-layers)
-- [Multi-Stage Builds](#multi-stage-builds)
-- [8. Appendix](#8-appendix)
-  - [8.1. Read-Only Bind Mounts](#81-read-only-bind-mounts)
-  - [8.2. Layers](#82-layers)
-  - [8.3. Optimizing Docker Images](#83-optimizing-docker-images)
-- [Multi-Stage Builds](#multi-stage-builds-1)
-  - [Possible Improvements](#possible-improvements)
+- [8. Multi-Stage Builds](#8-multi-stage-builds)
+- [9. Docker Compose](#9-docker-compose)
+- [10. Appendix](#10-appendix)
+  - [10.1. Read-Only Bind Mounts](#101-read-only-bind-mounts)
+  - [10.2. Layers](#102-layers)
+  - [10.3. Optimizing Docker Images](#103-optimizing-docker-images)
+- [11. Multi-Stage Builds](#11-multi-stage-builds)
+  - [11.1. Possible Improvements](#111-possible-improvements)
 
 ## 1. Intro
 
@@ -214,38 +215,49 @@ Caching Rules:
 
 A RUN command that deletes files creates a new layer, but the files remain in the previous layer. Therefore, avoid placing sensitive information in Docker images (even temporarily) and then deleting it. Since deleted data exists in prior layers, it can be recovered by a malicious user.
 
-## Multi-Stage Builds
+## 8. Multi-Stage Builds
 
 Multi-stage builds allow you to use multiple `FROM` instructions in a single Dockerfile. This is useful for separating build dependencies from the final image, reducing the size of the final image. Each `FROM` instruction starts a new stage in the build process, and you can copy files between stages using the `COPY --from=<stage>` instruction.
 
 Example:
 
 ```dockerfile
-# Build stage
-FROM python:3.13-slim-bookworm AS builder
-WORKDIR /app/
+# Build Stage
+FROM python:3.12-slim AS builder
 
-COPY requirements.txt .
-RUN pip wheel --no-cache-dir --no-deps --wheel-dir wheels/ -r requirements.txt
+# Set the working directory inside the build container (Docker creates the directory if it doesn't exist)
+WORKDIR /app
 
-# Runtime stage
-FROM python:3.13-slim-bookworm as runner
+# Copy the requirements and download/build wheels (without installing them)
+COPY pyproject.toml requirements.txt ./
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir wheels -r requirements.txt
 
-# Copy dependencies from the build stage
-COPY --from=builder /app/wheels/ /wheels/
-RUN pip install --no-cache /wheels/* && rm -rf /wheels/
+# Copy the source code and build the wheel for the local package (without installing it)
+COPY src src
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir wheels .
 
-# Copy application code
-COPY . /app/
+# Runtime Stage
+FROM python:3.12-slim AS runner
 
-CMD ["python", "app.py"]
+# Copy the wheels from the builder stage and install them
+COPY --from=builder /app/wheels /wheels
+RUN pip install --no-cache /wheels/* && rm -rf /wheels
+
+EXPOSE 8000
+
+# Define the default command to run when the container starts
+CMD ["uvicorn", "mysite.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-## 8. Appendix
+## 9. Docker Compose
+
+continue here...
+
+## 10. Appendix
 
 This section covers additional topics or expandsm on concepts discussed in the main content.
 
-### 8.1. Read-Only Bind Mounts
+### 10.1. Read-Only Bind Mounts
 
 A **bind mount** allows you to map a directory or file from your host system into a container. This can be useful for sharing configuration files, code, or other data between the host and the container.
 
@@ -286,11 +298,11 @@ Read-only bind mounts are useful in various scenarios, including:
 
 By using read-only bind mounts, you effectively minimize the risk of accidental or malicious changes to important files inside your containers, adding a layer of security and control.
 
-### 8.2. Layers
+### 10.2. Layers
 
 Docker images are built using a layered filesystem. Each instruction in a Dockerfile creates a new layer in the image. When you build an image, Docker caches the layers to improve build performance. If you make a change to a Dockerfile instruction, Docker rebuilds the image starting from the instruction that changed. This allows Docker to reuse previously built layers, speeding up the build process.
 
-### 8.3. Optimizing Docker Images
+### 10.3. Optimizing Docker Images
 
 Rules for optimizing Docker images:
 
@@ -302,7 +314,7 @@ Rules for optimizing Docker images:
 - **Use Specific Tags**: Use specific tags for base images and dependencies to ensure consistency and avoid unexpected changes. This helps maintain reproducibility and stability in your Docker images.
 - **Optimize Layers**: Be mindful of how layers are created in your Dockerfile. Avoid creating unnecessary layers and consider the impact of each instruction on the final image size.
 
-## Multi-Stage Builds
+## 11. Multi-Stage Builds
 
 Here’s an example of how your project might be structured on disk:
 
@@ -330,13 +342,13 @@ Here’s a breakdown of the Dockerfile:
 FROM python:3.13-slim-bookworm AS builder
 
 # Set the working directory inside the build container
-WORKDIR /app/
+WORKDIR /app
 
 # Copy only the requirements file first, to leverage Docker caching.
-COPY requirements.txt .
+COPY requirements.txt ./
 
 # Generate wheels for all dependencies and store them in /app/wheels
-RUN pip wheel --no-cache-dir --no-deps --wheel-dir wheels/ -r requirements.txt
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir wheels -r requirements.txt
 
 # (Optional) If you have any build steps, such as compiling extensions or 
 # other build artifacts, they would go here before we move on to the runtime stage.
@@ -344,6 +356,14 @@ RUN pip wheel --no-cache-dir --no-deps --wheel-dir wheels/ -r requirements.txt
 # ─────────────────────────────────────────────────────────
 # 2) Runtime Stage
 # ─────────────────────────────────────────────────────────
+# This stage starts with a fresh Python base image and thus has no
+# direct access to files from previous stages unless we copy them.
+# We use the `COPY --from=<stage_name>` syntax to retrieve artifacts
+# built or placed in the previous stage’s filesystem. Note that
+# the Docker build context is the set of files in the directory you
+# provide to `docker build`, and multi-stage builds allow you to
+# grab assets from other stages as though they were part of the
+# build context.
 FROM python:3.13-slim-bookworm AS runner
 
 # Copy the pre-built wheels from the builder stage into the runtime image
@@ -360,6 +380,10 @@ WORKDIR /app/
 
 # The default command that runs when the container starts
 CMD ["python", "app.py"]
+
+# Use the following to interactively test the image:
+# docker build -t test
+# docker run -it test /bin/bash
 ```
 
 Key Points:
@@ -382,7 +406,7 @@ Key Points:
 5. **CMD**
    - In the final stage, `CMD ["python", "app.py"]` indicates that this is the default command that will run when someone starts a container from this image.r from this image.
 
-### Possible Improvements
+### 11.1. Possible Improvements
 
 1. **Adding a Test Stage**
     You can introduce a separate test stage if you want to run unit tests or integration tests before producing the final image:
