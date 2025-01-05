@@ -14,10 +14,6 @@
 - [6. Custom Docker Images](#6-custom-docker-images)
 - [7. Appendix](#7-appendix)
   - [7.1. Read-Only Bind Mounts](#71-read-only-bind-mounts)
-    - [7.1.1. Use Cases for Read-Only Bind Mounts](#711-use-cases-for-read-only-bind-mounts)
-    - [7.1.2. Example of Read-Only Bind Mount](#712-example-of-read-only-bind-mount)
-    - [7.2.1. Explanation](#721-explanation)
-    - [7.2.2. When to Use Read-Only Bind Mounts](#722-when-to-use-read-only-bind-mounts)
 
 ## 1. Intro
 
@@ -191,13 +187,11 @@ A **bind mount** allows you to map a directory or file from your host system int
 
 **Read-only bind mounts** are a more secure way to provide access to files or directories from the host to the container without allowing the container to modify them. This is particularly useful when you want the container to have access to data that should not be changed (e.g., configuration files, static resources, etc.).
 
-#### 7.1.1. Use Cases for Read-Only Bind Mounts
+The use cases for read-only bind mounts include:
 
 - **Static Configuration Files**: You might want to provide a configuration file to the container but prevent the container from altering it.
 - **Static Website Files**: For containers serving static websites, you can mount the website files read-only to prevent the web server (or any processes in the container) from modifying them.
 - **Shared Libraries**: If the container requires access to a host directory containing shared libraries, a read-only mount can ensure that the container doesn’t accidentally alter the libraries.
-
-#### 7.1.2. Example of Read-Only Bind Mount
 
 Let's say you are running a web server container (e.g., Nginx) and you want to serve static files located on your host. You can mount the directory containing the static files into the container in **read-only mode** to ensure that the files cannot be altered by any processes running inside the container.
 
@@ -205,7 +199,7 @@ Let's say you are running a web server container (e.g., Nginx) and you want to s
 docker run -d -p 8080:80 -v $(pwd)/static:/usr/share/nginx/html:ro nginx
 ```
 
-#### 7.2.1. Explanation
+In this command:
 
 - **`-d`**: Runs the container in detached mode.
 - **`-p 8080:80`**: Maps port 8080 on your host to port 80 in the container (standard web server port).
@@ -220,7 +214,7 @@ In this example:
 - The **host directory** (`static`) contains static HTML files you want the Nginx server to serve.
 - The container can access and serve the files, but it cannot make changes to them because of the read-only flag (`:ro`).
 
-#### 7.2.2. When to Use Read-Only Bind Mounts
+Read-only bind mounts are useful in various scenarios, including:
 
 - **Security Concerns**: If you're concerned about potential changes to sensitive or critical files (such as configuration files), use a read-only mount to ensure the container has read access only.
 - **Immutable Data**: If the data you’re providing to the container doesn’t need to be modified (e.g., assets for a web app or libraries), using read-only mounts helps protect data integrity.
