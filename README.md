@@ -1,5 +1,5 @@
 <!-- omit in toc -->
-# Useful Docker Commands
+# Docker Basics
 
 <!-- omit in toc -->
 ## Table of Contents
@@ -16,7 +16,6 @@
   - [7.1. Read-Only Bind Mounts](#71-read-only-bind-mounts)
     - [7.1.1. Use Cases for Read-Only Bind Mounts](#711-use-cases-for-read-only-bind-mounts)
     - [7.1.2. Example of Read-Only Bind Mount](#712-example-of-read-only-bind-mount)
-  - [7.2. Example](#72-example)
     - [7.2.1. Explanation](#721-explanation)
     - [7.2.2. When to Use Read-Only Bind Mounts](#722-when-to-use-read-only-bind-mounts)
 
@@ -201,8 +200,6 @@ A **bind mount** allows you to map a directory or file from your host system int
 #### 7.1.2. Example of Read-Only Bind Mount
 
 Let's say you are running a web server container (e.g., Nginx) and you want to serve static files located on your host. You can mount the directory containing the static files into the container in **read-only mode** to ensure that the files cannot be altered by any processes running inside the container.
-
-### 7.2. Example
 
 ```bash
 docker run -d -p 8080:80 -v $(pwd)/static:/usr/share/nginx/html:ro nginx
