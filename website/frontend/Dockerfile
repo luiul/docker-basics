@@ -1,0 +1,2 @@
+# FROM nginx:1.21
+FROM nginx@sha256:2bcabc23b45489fb0885d69a06ba1d648aeda973fae7bb981bafbb884165e514

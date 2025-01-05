@@ -1,6 +1,26 @@
+<!-- omit in toc -->
 # Useful Docker Commands
 
-## Intro
+<!-- omit in toc -->
+## Table of Contents
+
+- [1. Intro](#1-intro)
+- [2. Docker Run Basics](#2-docker-run-basics)
+- [3. Tags](#3-tags)
+- [4. Runtime and Debugging](#4-runtime-and-debugging)
+- [5. Persistent Storage](#5-persistent-storage)
+  - [5.1. Volumes](#51-volumes)
+  - [5.2. Bind Mounts](#52-bind-mounts)
+- [6. Custom Docker Images](#6-custom-docker-images)
+- [7. Appendix](#7-appendix)
+  - [7.1. Read-Only Bind Mounts](#71-read-only-bind-mounts)
+    - [7.1.1. Use Cases for Read-Only Bind Mounts](#711-use-cases-for-read-only-bind-mounts)
+    - [7.1.2. Example of Read-Only Bind Mount](#712-example-of-read-only-bind-mount)
+  - [7.2. Example](#72-example)
+    - [7.2.1. Explanation](#721-explanation)
+    - [7.2.2. When to Use Read-Only Bind Mounts](#722-when-to-use-read-only-bind-mounts)
+
+## 1. Intro
 
 - **`docker run <image_name>`**  
   Runs a container based on the specified Docker image. If the image isn't available locally, Docker will attempt to pull it from Docker Hub or another registry. Note that each time you run this command, a new container instance is created based on the image you specify. This means that changes made to the container (e.g., file modifications, installed packages) are not persisted across runs.
@@ -25,7 +45,7 @@ docker run nginx
 
 This command runs an Nginx container based on the official Nginx image. If the image is not available locally, Docker will pull it from Docker Hub. The container will start and run the Nginx web server.
 
-## Docker Run Basics
+## 2. Docker Run Basics
 
 - **`docker run -p <host_port>:<container_port> <image_name>`**  
   Runs a container from the specified image and maps a host port to the container port, allowing the container to communicate through the specified port.
@@ -53,7 +73,7 @@ docker run -p 8080:80 -d nginx
 
 This command runs an Nginx container in detached mode, mapping port 80 of the container to port 8080 on your host machine. You can access the Nginx web server through `http://localhost:8080`.
 
-## Tags
+## 3. Tags
 
 - **Tags are mutable**  
   Docker image tags (e.g., `nginx:latest`) are mutable, meaning they can point to different versions of an image over time. This is why it's recommended to use version-specific tags when you need consistency.
@@ -75,7 +95,7 @@ docker run -p 80:80 -d nginx:1.21.0-bookworm
 
 This command runs the official Nginx image in detached mode and maps port 80 of the container to port 80 on your host machine. It allows you to access the Nginx web server through `http://localhost:80`. Additionally, the `1.21.0` tag ensures you're using a specific version of the Nginx image. In production, it's recommended to use version-specific digests for even greater consistency.
 
-## Runtime and Debugging
+## 4. Runtime and Debugging
 
 - **`docker run -e <key>=<value> <image_name>:<tag> <command>`**  
   Runs a container based on the specified image and executes the specified command within the container. This is useful for running one-off commands or scripts inside a container.
@@ -108,7 +128,7 @@ This command runs a Python container with environment variables `ABC` and `DEF` 
 - **`docker exec -it <container_name|container_id> /bin/bash`**
   Accesses a running container's shell (`/bin/bash`) for interactive use. This is helpful for debugging, inspecting the container environment, or running commands inside the container.
 
-## Persistent Storage
+## 5. Persistent Storage
 
 Let begin with an example:
 
@@ -122,7 +142,7 @@ print(open(f).read())
 
 Note that the file `data.txt` is created and written to inside the container. However, when the container stops, the file is lost because the container's filesystem is ephemeral. To persist data across container runs, you can use **volumes** or **bind mounts**. Tmpfs mounts are also available for non-persistent storage (not covered here).
 
-### Volumes
+### 5.1. Volumes
 
 ```shell
 docker run -v docker_managed_volume:/app_data python:3.13-slim-bookworm python -c '
@@ -136,7 +156,7 @@ In this example, a volume named `docker_managed_volume` is mounted at the `/app_
 
 Volumes are a good choice for **production** environments where you need to persist data across container runs and share data between containers. They are also useful for storing data that needs to be accessed by multiple containers. Docker volumes are managed by Docker and are not directly accessible from the host system, providing an additional layer of isolation and security. They can use remote or cloud storage solutions (e.g., AWS EFS, NFS, SSHFS) for more advanced use cases.
 
-### Bind Mounts
+### 5.2. Bind Mounts
 
 In the previous example we used a volume mount. Now let's see how to use a bind mount:
 
@@ -153,44 +173,42 @@ Note that the syntax is similar to volume mounts, but the difference is that bin
 
 Bind mounts are useful for **development** environments where you want to share code or data between the host and container. They are also convenient for sharing configuration files or other resources that need to be accessed by the container. However, bind mounts can be less secure than volumes because they give the container direct access to the host filesystem. For added security, consider using read-only bind mounts.
 
-## Custom Docker Images
+## 6. Custom Docker Images
 
-continue here...
+- **`docker build -t <image_name> -f <Dockerfile_path> .`**  
+  Builds a Docker image based on the specified Dockerfile. The `-t` flag assigns a tag to the image, making it easier to reference. The `.` at the end specifies the build context, i.e., the directory containing the Dockerfile and any other files needed for the build process.
 
-- **`docker exec -it <container_name> /bin/bash`**  
-  Accesses a running container's shell (`/bin/bash`) for interactive use.
+Example:
 
-- **`docker run python:3.12 python -c 'f="/data.txt";open(f, "a").write(f"Ran!\n");print(open(f).read())'`**  
-  Runs a Python container and writes data to a file inside the container.
+```shell
+docker build -t website -f ./Dockerfile .
+```
 
-- **`docker run -v mydata:/data python:3.12 python -c 'f="/data/data.txt";open(f, "a").write(f"Ran!\n");print(open(f).read())'`**  
-  Runs a Python container with a volume named `mydata` mounted at `/data`. The command writes to a file in the volume and reads its contents, demonstrating persistent storage.
+## 7. Appendix
 
-## Appendix
-
-### Read-Only Bind Mounts
+### 7.1. Read-Only Bind Mounts
 
 A **bind mount** allows you to map a directory or file from your host system into a container. This can be useful for sharing configuration files, code, or other data between the host and the container.
 
 **Read-only bind mounts** are a more secure way to provide access to files or directories from the host to the container without allowing the container to modify them. This is particularly useful when you want the container to have access to data that should not be changed (e.g., configuration files, static resources, etc.).
 
-#### Use Cases for Read-Only Bind Mounts
+#### 7.1.1. Use Cases for Read-Only Bind Mounts
 
 - **Static Configuration Files**: You might want to provide a configuration file to the container but prevent the container from altering it.
 - **Static Website Files**: For containers serving static websites, you can mount the website files read-only to prevent the web server (or any processes in the container) from modifying them.
 - **Shared Libraries**: If the container requires access to a host directory containing shared libraries, a read-only mount can ensure that the container doesn’t accidentally alter the libraries.
 
-#### Example of Read-Only Bind Mount
+#### 7.1.2. Example of Read-Only Bind Mount
 
 Let's say you are running a web server container (e.g., Nginx) and you want to serve static files located on your host. You can mount the directory containing the static files into the container in **read-only mode** to ensure that the files cannot be altered by any processes running inside the container.
 
-### Example
+### 7.2. Example
 
 ```bash
 docker run -d -p 8080:80 -v $(pwd)/static:/usr/share/nginx/html:ro nginx
 ```
 
-#### Explanation
+#### 7.2.1. Explanation
 
 - **`-d`**: Runs the container in detached mode.
 - **`-p 8080:80`**: Maps port 8080 on your host to port 80 in the container (standard web server port).
@@ -205,12 +223,10 @@ In this example:
 - The **host directory** (`static`) contains static HTML files you want the Nginx server to serve.
 - The container can access and serve the files, but it cannot make changes to them because of the read-only flag (`:ro`).
 
-#### When to Use Read-Only Bind Mounts
+#### 7.2.2. When to Use Read-Only Bind Mounts
 
 - **Security Concerns**: If you're concerned about potential changes to sensitive or critical files (such as configuration files), use a read-only mount to ensure the container has read access only.
 - **Immutable Data**: If the data you’re providing to the container doesn’t need to be modified (e.g., assets for a web app or libraries), using read-only mounts helps protect data integrity.
 - **Auditing and Compliance**: In scenarios where changes to data need to be controlled and audited, ensuring that containers can only read but not write can help you maintain compliance.
 
 By using read-only bind mounts, you effectively minimize the risk of accidental or malicious changes to important files inside your containers, adding a layer of security and control.
-
-## conitnue
