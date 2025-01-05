@@ -12,8 +12,11 @@
   - [5.1. Volumes](#51-volumes)
   - [5.2. Bind Mounts](#52-bind-mounts)
 - [6. Custom Docker Images](#6-custom-docker-images)
-- [7. Appendix](#7-appendix)
-  - [7.1. Read-Only Bind Mounts](#71-read-only-bind-mounts)
+- [7. Layers](#7-layers)
+- [8. Appendix](#8-appendix)
+  - [8.1. Read-Only Bind Mounts](#81-read-only-bind-mounts)
+  - [8.2. Layers](#82-layers)
+  - [8.3. Misc](#83-misc)
 
 ## 1. Intro
 
@@ -176,12 +179,41 @@ Bind mounts are useful for **development** environments where you want to share 
 Example:
 
 ```shell
-docker build -t website -f ./Dockerfile .
+docker build -t my-website -f ./Dockerfile .
+# or to simplify the command
+docker build -t my-website . &&
+docker run -p 80:80 -d my-website &&
+docker exec -it heuristic_kare /bin/bash &&
+cat /usr/share/nginx/html/index.html
+# Output: <content of the index.html file>
 ```
 
-## 7. Appendix
+After doing any change to the Dockerfile, you need to rebuild the image and run the container again. This is because the image is a snapshot of the filesystem at the time of the build, and changes made to the filesystem after the build are not reflected in the image.
 
-### 7.1. Read-Only Bind Mounts
+Useful Dockerfile instructions:
+
+- **`FROM <base_image>:<tag>`**: Specifies the base image to build upon. This is the starting point for your custom image. You can use official images from Docker Hub or other registries, or you can use other custom images you've built. The `tag` is optional and specifies a specific version of the base image. If omitted, Docker uses the `latest` tag by default.
+- **`COPY <src> <dest>`**: Copies files or directories from the build context to the image. This is useful for adding application code, configuration files, etc. to the image. The `src` path is relative to the build context. The `dest` path is the location in the image where the files will be copied.
+- **`RUN <command>`**: Executes a command during the build process. This is useful for installing packages, setting up the environment, etc. Each `RUN` instruction creates a new layer in the image. To reduce the image size, consider chaining commands together (e.g., `RUN apt-get update && apt-get install -y package`).
+
+## 7. Layers
+
+Similar to image diffs, each command in a Dockerfile creates a layer. Layers are immutable, and images are composed of these layers. When you change a command in a Dockerfile, Docker rebuilds the image starting from the instruction that changed. This behavior allows Docker to reuse previously built layers, improving the build process’s efficiency.
+
+Caching Rules:
+
+1. Changing a command invalidates the cache for the current command and all subsequent commands.
+2. Most commands are cached by default, even if they aren’t deterministic. For example, RUN apt-get install -y package will be cached unless the package list changes, even though the command itself is not deterministic.
+
+**Warning**:
+
+A RUN command that deletes files creates a new layer, but the files remain in the previous layer. Therefore, avoid placing sensitive information in Docker images (even temporarily) and then deleting it. Since deleted data exists in prior layers, it can be recovered by a malicious user.
+
+## 8. Appendix
+
+This section covers additional topics or expandsm on concepts discussed in the main content.
+
+### 8.1. Read-Only Bind Mounts
 
 A **bind mount** allows you to map a directory or file from your host system into a container. This can be useful for sharing configuration files, code, or other data between the host and the container.
 
@@ -221,3 +253,19 @@ Read-only bind mounts are useful in various scenarios, including:
 - **Auditing and Compliance**: In scenarios where changes to data need to be controlled and audited, ensuring that containers can only read but not write can help you maintain compliance.
 
 By using read-only bind mounts, you effectively minimize the risk of accidental or malicious changes to important files inside your containers, adding a layer of security and control.
+
+### 8.2. Layers
+
+Docker images are built using a layered filesystem. Each instruction in a Dockerfile creates a new layer in the image. When you build an image, Docker caches the layers to improve build performance. If you make a change to a Dockerfile instruction, Docker rebuilds the image starting from the instruction that changed. This allows Docker to reuse previously built layers, speeding up the build process.
+
+### 8.3. Misc
+
+Rules for optimizing Docker images:
+
+- **Combine Commands**: Combine multiple `RUN` instructions into a single `RUN` instruction to reduce the number of layers created. For example, instead of running `apt-get update` and `apt-get install` in separate `RUN` instructions, combine them into one.
+- **Use .dockerignore**: Create a `.dockerignore` file to exclude unnecessary files and directories from the build context. This reduces the size of the build context and speeds up the build process.
+- **Order Instructions**: Place instructions that change frequently (e.g., copying application code) towards the end of the Dockerfile. This allows Docker to reuse cached layers for instructions that change less frequently.
+- **Use Multi-Stage Builds**: Use multi-stage builds to separate build dependencies from the final image. This helps reduce the size of the final image by only including necessary files and dependencies.
+- **Minimize Image Size**: Remove unnecessary files, dependencies, and build artifacts from the final image to reduce its size. This can be done by using smaller base images, cleaning up after installation, and avoiding unnecessary packages.
+- **Use Specific Tags**: Use specific tags for base images and dependencies to ensure consistency and avoid unexpected changes. This helps maintain reproducibility and stability in your Docker images.
+- **Optimize Layers**: Be mindful of how layers are created in your Dockerfile. Avoid creating unnecessary layers and consider the impact of each instruction on the final image size.
