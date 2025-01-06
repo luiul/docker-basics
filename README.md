@@ -22,8 +22,7 @@ Docker is a platform for developing, shipping, and running applications in conta
   - [11.1. Read-Only Bind Mounts](#111-read-only-bind-mounts)
   - [11.2. Layers](#112-layers)
   - [11.3. Optimizing Docker Images](#113-optimizing-docker-images)
-- [12. Multi-Stage Builds](#12-multi-stage-builds)
-  - [12.1. Possible Improvements](#121-possible-improvements)
+  - [11.4. Multi-Stage Builds](#114-multi-stage-builds)
 
 ## 1. Intro
 
@@ -338,7 +337,7 @@ Rules for optimizing Docker images:
 - **Use Specific Tags**: Use specific tags for base images and dependencies to ensure consistency and avoid unexpected changes. This helps maintain reproducibility and stability in your Docker images.
 - **Optimize Layers**: Be mindful of how layers are created in your Dockerfile. Avoid creating unnecessary layers and consider the impact of each instruction on the final image size.
 
-## 12. Multi-Stage Builds
+### 11.4. Multi-Stage Builds
 
 Here’s an example of how your project might be structured on disk:
 
@@ -430,7 +429,7 @@ Key Points:
 5. **CMD**
    - In the final stage, `CMD ["python", "app.py"]` indicates that this is the default command that will run when someone starts a container from this image.r from this image.
 
-### 12.1. Possible Improvements
+Possible Improvements:
 
 1. **Adding a Test Stage**
     You can introduce a separate test stage if you want to run unit tests or integration tests before producing the final image:
